@@ -1,172 +1,106 @@
-"""
-Модуль для работы со статистикой игроков и группы
-"""
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, Any, List, Tuple
 
-# Файл для хранения статистики
 STATS_FILE = 'group_stats.json'
 
-# Глобальные переменные для хранения данных
-user_data = {}
-group_stats = {}
+# Глобальные данные
+lobby_stats = {
+    'total_games': 0,
+    'wins': 0,
+    'losses': 0
+}
+
+player_stats = {}  # {user_id: {mvp_count: X, lvp_count: Y, username: str}}
 
 def load_stats():
-    """Загрузка статистики из файла"""
-    global user_data, group_stats
+    global lobby_stats, player_stats
     if os.path.exists(STATS_FILE):
         try:
             with open(STATS_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                user_data = data.get('users', {})
-                group_stats = data.get('group', {})
+                lobby_stats = data.get('lobby_stats', {'total_games': 0, 'wins': 0, 'losses': 0})
+                player_stats = data.get('player_stats', {})
         except Exception as e:
-            print(f"Ошибка загрузки статистики: {e}")
-            user_data = {}
-            group_stats = {}
+            print(f"Ошибка загрузки: {e}")
 
 def save_stats():
-    """Сохранение статистики в файл"""
     data = {
-        'users': user_data,
-        'group': group_stats
+        'lobby_stats': lobby_stats,
+        'player_stats': player_stats
     }
-    try:
-        with open(STATS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"Ошибка сохранения статистики: {e}")
+    with open(STATS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
-def get_user_stats(user_id: str, username: str = None, first_name: str = None) -> Dict[str, Any]:
-    """Получение статистики пользователя"""
-    if user_id not in user_data:
-        user_data[user_id] = {
-            'wins': 0, 'losses': 0, 'mvp_count': 0, 'lvm_count': 0,
-            'role_stats': {},
-            'last_game': None, 'join_date': datetime.now().isoformat(),
-            'username': username, 'first_name': first_name
+def register_player(user_id: str, username: str):
+    if user_id not in player_stats:
+        player_stats[user_id] = {
+            'mvp_count': 0,
+            'lvp_count': 0,
+            'username': username,
+            'first_seen': datetime.now().isoformat()
         }
-    else:
-        # Обновляем информацию пользователя если изменилась
-        if username and user_data[user_id].get('username') != username:
-            user_data[user_id]['username'] = username
-        if first_name and user_data[user_id].get('first_name') != first_name:
-            user_data[user_id]['first_name'] = first_name
-    
-    return user_data[user_id]
+    elif username and player_stats[user_id]['username'] != username:
+        player_stats[user_id]['username'] = username
+    return player_stats[user_id]
 
-def update_user_stats(user_id: str, stat_type: str, value: Any = None, username: str = None, first_name: str = None):
-    """Обновление статистики пользователя"""
-    stats = get_user_stats(user_id, username, first_name)
-    
-    if stat_type == 'win':
-        stats['wins'] += 1
-        stats['last_game'] = datetime.now().isoformat()
-        group_stats['group_wins'] = group_stats.get('group_wins', 0) + 1
-    elif stat_type == 'loss':
-        stats['losses'] += 1
-        stats['last_game'] = datetime.now().isoformat()
-        group_stats['group_losses'] = group_stats.get('group_losses', 0) + 1
-    elif stat_type == 'mvp':
-        stats['mvp_count'] += 1
-        group_stats['total_mvp'] = group_stats.get('total_mvp', 0) + 1
-    elif stat_type == 'lvm':
-        stats['lvm_count'] += 1
-        group_stats['total_lvm'] = group_stats.get('total_lvm', 0) + 1
-    elif stat_type == 'role':
-        if value:
-            role = value.lower()
-            if role not in stats['role_stats']:
-                stats['role_stats'][role] = {'wins': 0, 'losses': 0}
-            stats['role_stats'][role]['wins'] += 1
-    
+def record_game_result(is_win: bool):
+    lobby_stats['total_games'] += 1
+    if is_win:
+        lobby_stats['wins'] += 1
+    else:
+        lobby_stats['losses'] += 1
     save_stats()
 
-def get_user_display_name(user_id: str) -> str:
-    """Получение отображаемого имени пользователя"""
-    if user_id not in user_data:
-        return f"Игрок {user_id}"
+def add_mvp(username: str):
+    user_id = find_player_by_username(username)
+    if not user_id:
+        user_id = f"user_{len(player_stats)+1}"
+        register_player(user_id, username)
     
-    user_info = user_data[user_id]
-    if user_info.get('username'):
-        return f"@{user_info['username']}"
-    elif user_info.get('first_name'):
-        return user_info['first_name']
-    else:
-        return f"Игрок {user_id}"
+    player_stats[user_id]['mvp_count'] += 1
+    save_stats()
 
-def get_leaderboard() -> List[Tuple[str, Dict[str, Any]]]:
-    """Получение таблицы лидеров"""
-    users = []
-    for user_id, stats in user_data.items():
-        total_games = stats['wins'] + stats['losses']
-        if total_games > 0:
-            winrate = (stats['wins'] / total_games) * 100
-            users.append((user_id, {**stats, 'winrate': winrate, 'total_games': total_games}))
+def add_lvp(username: str):
+    user_id = find_player_by_username(username)
+    if not user_id:
+        user_id = f"user_{len(player_stats)+1}"
+        register_player(user_id, username)
     
-    # Сортировка по винрейту, затем по количеству игр
-    users.sort(key=lambda x: (x[1]['winrate'], x[1]['total_games']), reverse=True)
-    return users
+    player_stats[user_id]['lvp_count'] += 1
+    save_stats()
 
-def get_lvm_leaderboard() -> List[Tuple[str, Dict[str, Any]]]:
-    """Получение таблицы LVM (Least Valuable Players)"""
-    users = []
-    for user_id, stats in user_data.items():
-        total_games = stats['wins'] + stats['losses']
-        if total_games > 0 and stats.get('lvm_count', 0) > 0:
-            lvm_rate = (stats['lvm_count'] / total_games) * 100
-            users.append((user_id, {**stats, 'lvm_rate': lvm_rate, 'total_games': total_games}))
-    
-    # Сортировка по количеству LVM, затем по общему количеству игр
-    users.sort(key=lambda x: (x[1]['lvm_count'], x[1]['total_games']), reverse=True)
-    return users
-
-def get_group_summary() -> Dict[str, Any]:
-    """Получение сводки по группе"""
-    total_wins = sum(stats['wins'] for stats in user_data.values())
-    total_losses = sum(stats['losses'] for stats in user_data.values())
-    total_games = total_wins + total_losses
-    
-    return {
-        'total_games': total_games,
-        'total_wins': total_wins,
-        'total_losses': total_losses,
-        'group_winrate': (total_wins / total_games * 100) if total_games > 0 else 0,
-        'active_players': len([u for u in user_data.values() if u['wins'] + u['losses'] > 0]),
-        'total_players': len(user_data),
-        'total_mvp': group_stats.get('total_mvp', 0),
-        'total_lvm': group_stats.get('total_lvm', 0)
-    }
-
-def get_weekly_stats() -> Dict[str, Any]:
-    """Получение недельной статистики"""
-    week_ago = datetime.now() - timedelta(days=7)
-    weekly_wins = 0
-    weekly_losses = 0
-    
-    for stats in user_data.values():
-        if stats.get('last_game'):
-            last_game = datetime.fromisoformat(stats['last_game'])
-            if last_game >= week_ago:
-                weekly_wins += stats.get('weekly_wins', 0)
-                weekly_losses += stats.get('weekly_losses', 0)
-    
-    total_weekly = weekly_wins + weekly_losses
-    return {
-        'weekly_wins': weekly_wins,
-        'weekly_losses': weekly_losses,
-        'weekly_winrate': (weekly_wins / total_weekly * 100) if total_weekly > 0 else 0
-    }
-
-def find_user_by_username(username: str) -> str:
-    """Поиск пользователя по username"""
-    username = username.replace('@', '')
-    for user_id, stats in user_data.items():
-        if stats.get('username') == username:
+def find_player_by_username(username: str) -> str:
+    username = username.lstrip('@').lower()
+    for user_id, data in player_stats.items():
+        if data.get('username', '').lower() == username:
             return user_id
     return None
 
-# Загружаем статистику при импорте модуля
-load_stats() 
+def get_player_display_name(user_id: str) -> str:
+    player = player_stats.get(user_id, {})
+    return f"@{player['username']}" if player.get('username') else f"Игрок {user_id}"
+
+def get_mvp_leaderboard() -> List[Tuple[str, int]]:
+    return sorted(
+        [(data['username'], data['mvp_count']) 
+        for data in player_stats.values() 
+        if data.get('mvp_count', 0) > 0
+    ], key=lambda x: x[1], reverse=True)[:10]
+
+def get_lvp_leaderboard() -> List[Tuple[str, int]]:
+    return sorted(
+        [(data['username'], data['lvp_count']) 
+        for data in player_stats.values() 
+        if data.get('lvp_count', 0) > 0
+    ], key=lambda x: x[1], reverse=True)[:10]
+
+def get_lobby_stats() -> Dict[str, Any]:
+    winrate = (lobby_stats['wins'] / lobby_stats['total_games'] * 100) if lobby_stats['total_games'] > 0 else 0
+    return {
+        **lobby_stats,
+        'winrate': winrate
+    }
+
+load_stats()
