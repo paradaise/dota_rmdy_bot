@@ -1,0 +1,21 @@
+{
+  "users": {
+    "307319975": {
+      "wins": 1,
+      "losses": 2,
+      "mvp_count": 4,
+      "lvm_count": 4,
+      "role_stats": {},
+      "last_game": "2025-08-06T13:16:12.163806",
+      "join_date": "2025-08-06T04:39:54.875142",
+      "username": "victor_gogolev",
+      "first_name": "Viсtor"
+    }
+  },
+  "group": {
+    "total_lvm": 4,
+    "total_mvp": 4,
+    "group_wins": 1,
+    "group_losses": 2
+  }
+}
