@@ -10,3 +10,4 @@
 *.pyzwzw
 *.pyzwzwz
 .env
+*temp*

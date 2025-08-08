@@ -1,0 +1,33 @@
+{
+  "lobby_stats": {
+    "total_games": 23,
+    "wins": 4,
+    "losses": 19
+  },
+  "player_stats": {
+    "user_1": {
+      "mvp_count": 1000,
+      "lvp_count": 0,
+      "username": "@victor_gogolev",
+      "first_seen": "2025-08-08T13:31:34.270476"
+    },
+    "user_2": {
+      "mvp_count": 0,
+      "lvp_count": 2,
+      "username": "@imqwe",
+      "first_seen": "2025-08-08T13:55:44.393725"
+    },
+    "user_3": {
+      "mvp_count": 0,
+      "lvp_count": 2,
+      "username": "@thrmdy",
+      "first_seen": "2025-08-08T13:55:47.363340"
+    },
+    "user_4": {
+      "mvp_count": 0,
+      "lvp_count": 2,
+      "username": "@ymznn",
+      "first_seen": "2025-08-08T18:38:17.572534"
+    }
+  }
+}
