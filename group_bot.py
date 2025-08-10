@@ -1,12 +1,14 @@
+import logging, os, random
+
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-
 from statistics_data import *
 from fun_commands import get_fun_response
-import logging
-import os
 from dotenv import load_dotenv
 from slow_text import slow_text
+
+from challange import CHALLANGE_LIST
 
 # Инициализация логгера
 logging.basicConfig(
@@ -18,13 +20,14 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("📊 Статистика", callback_data="stats")],
+        [InlineKeyboardButton("⚔️ Сделать вызов", callback_data="make_challange")],
         [InlineKeyboardButton("📞 Контакты", callback_data="contacts")],
         [InlineKeyboardButton("❓ Помощь", callback_data="help")],
         [InlineKeyboardButton("🐌 Зааамеедление", callback_data="slow_mode")],
     ]
     await update.message.reply_text(
         "🎮 <b>Rmdy Lobby Stats Bot</b>\n\n"
-        "<i>Пока я отслеживать статистику вашего лобби и назначать MVP/LVP игрокам!</i>\n\n"
+        "<i>Пока я умею отслеживать статистику вашего лобби,назначать MVP/LVP игрокам,давать случаыйный вызов на игру и зааамеедляяять врееемяя</i>\n\n"
         "<b>Используйте /help для списка команд</b>",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML",
@@ -152,6 +155,19 @@ async def contacts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def challange_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = random.choice(CHALLANGE_LIST)
+
+    if update.message:
+        await update.message.reply_text(
+            text, parse_mode="HTML", disable_web_page_preview=True
+        )
+    elif update.callback_query:
+        await update.callback_query.message.reply_text(
+            text, parse_mode="HTML", disable_web_page_preview=True
+        )
+
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "🛠 <b>Доступные команды:</b>\n\n"
@@ -165,12 +181,23 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "▫️ <b>/motivate @ник</b> - Мотивировать игрока\n"
         "▫️ <b>/blame @ник</b> - Обвинить игрока\n\n"
         "📊 <b>/stats</b> - Показать статистику\n"
+        "⚔️ <b>/make_challange</b> - Сделать случайный вызов на игру\n"
         "❓ <b>/help</b> - Эта справка\n\n"
         "🐌 <b>Замедление:</b>\n"
-        "▫️ <b>/slow_voice</b> + голосовое/аудио — замедлить аудио(Пока в разработке)\n"
-        "▫️ <b>/slow_text</b> [текст] — преобразовать текст в замедленную речь\n"
+        "🔉 <b>/slow_voice</b> + голосовое/аудио — замедлить аудио(Пока в разработке)\n"
+        "💬 <b>/slow_text</b> [текст] — преобразовать текст в замедленную речь\n"
     )
     await update.message.reply_text(help_text, parse_mode="HTML")
+
+
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.error(f"Ошибка: {context.error}")
+    if update.callback_query:
+        await update.callback_query.message.reply_text(
+            "❌ Произошла ошибка. Попробуйте еще раз."
+        )
+    elif update.message:
+        await update.message.reply_text("❌ Произошла ошибка. Попробуйте еще раз.")
 
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -184,8 +211,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await help_command(update, context)
         elif query.data == "contacts":
             await contacts_command(update, context)
+        elif query.data == "make_challange":
+            await challange_command(update, context)
         elif query.data == "back":
             await start(update, context)
+
         elif query.data == "slow_mode":
             keyboard = [
                 [
@@ -214,16 +244,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Ошибка в обработчике кнопок: {e}")
         await query.edit_message_text("❌ Произошла ошибка. Попробуйте еще раз.")
-
-
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.error(f"Ошибка: {context.error}")
-    if update.callback_query:
-        await update.callback_query.message.reply_text(
-            "❌ Произошла ошибка. Попробуйте еще раз."
-        )
-    elif update.message:
-        await update.message.reply_text("❌ Произошла ошибка. Попробуйте еще раз.")
 
 
 def main():
@@ -257,6 +277,7 @@ def main():
     # Обработчики кнопок
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(CommandHandler("slow_text", slow_text))
+    app.add_handler(CommandHandler("make_challange", challange_command))
 
     # Обработчики ошибок
     app.add_error_handler(error_handler)

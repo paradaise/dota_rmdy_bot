@@ -1,10 +1,8 @@
 import os
 import edge_tts
-import asyncio
 from telegram import Update
 from telegram.ext import ContextTypes
 
-# Убедитесь, что папка temp существует
 os.makedirs("temp", exist_ok=True)
 
 

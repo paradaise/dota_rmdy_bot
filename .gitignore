@@ -11,3 +11,4 @@
 *.pyzwzwz
 .env
 *temp*
+*.vscode*
